@@ -18,7 +18,7 @@ module.exports = {
     }
 
     try {
-      await client.commands.get(command).execute(message);
+      await client.commands.get(command).execute(message, client);
     } catch (error) {
       console.log(error);
       await message.reply({ content: "there was an error", ephemeral: true });

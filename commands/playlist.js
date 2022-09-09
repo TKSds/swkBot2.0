@@ -17,7 +17,6 @@ module.exports = {
     populateListFromLocalAudioFiles(list, OPTION_NERVI);
     populateListFromLocalAudioFiles(list, OPTION_ALCOOLIC);
     populateListFromLocalAudioFiles(list, OPTION_ANEVRISM);
-    console.log(list);
     await interaction.channel.send(
       list.map((i) => `${list.indexOf(i) + 1}. ${i}`).join("\n")
     );

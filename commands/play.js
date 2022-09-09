@@ -1,6 +1,5 @@
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const {
-  generateDependencyReport,
   AudioPlayerStatus,
   joinVoiceChannel,
   createAudioPlayer,
@@ -39,14 +38,8 @@ module.exports = {
       return populateChoiceList(option, anevrismChoiceList, OPTION_ANEVRISM);
     }),
   async execute(interaction, client) {
-    // get the option used to determine which audioFile to play
-    // [0], since we only have one option to the slash command
-    const optionSelected = interaction.options._hoistedOptions[0].name;
-    const audioFileNameSelected = interaction.options._hoistedOptions[0].value;
-
     // get voice channel id where the user that issues the command is connected
     const voiceChannelId = interaction.member.voice.channel.id;
-
     // get the voice channel ids
     const voiceChannel = client.channels.cache.get(voiceChannelId);
     const guildId = config.guildId;
@@ -57,68 +50,132 @@ module.exports = {
     player.on(AudioPlayerStatus.Playing, () => {
       console.log("The audio player has started playing!");
     });
-
     player.on("error", (error) => {
       console.error(`Error: ${error.message} with resource`);
     });
 
-    if (audioFileNameSelected) {
-      var resource = "";
+    if (interaction.options) {
+      // get the option used to determine which audioFile to play
+      // [0], since we only have one option to the slash command
+      const optionSelected = interaction.options._hoistedOptions[0].name;
+      const audioFileNameSelected =
+        interaction.options._hoistedOptions[0].value;
 
-      switch (optionSelected) {
-        case OPTION_NERVI:
-          // create and play audio
-          resource = createAndPlayAudioFile(
-            resource,
-            audioFileNameSelected,
-            OPTION_NERVI,
-            player
-          );
-          break;
-        case OPTION_ALCOOLIC:
-          resource = createAndPlayAudioFile(
-            resource,
-            audioFileNameSelected,
-            OPTION_ALCOOLIC,
-            player
-          );
-          break;
-        case OPTION_ANEVRISM:
-          resource = createAndPlayAudioFile(
-            resource,
-            audioFileNameSelected,
-            OPTION_ANEVRISM,
-            player
-          );
-          break;
+      if (audioFileNameSelected) {
+        switch (optionSelected) {
+          case OPTION_NERVI:
+            // create and play audio
+            createAndPlayAudioFile(audioFileNameSelected, OPTION_NERVI, player);
+            break;
+          case OPTION_ALCOOLIC:
+            createAndPlayAudioFile(
+              audioFileNameSelected,
+              OPTION_ALCOOLIC,
+              player
+            );
+            break;
+          case OPTION_ANEVRISM:
+            createAndPlayAudioFile(
+              audioFileNameSelected,
+              OPTION_ANEVRISM,
+              player
+            );
+            break;
+        }
       }
-    }
 
-    // create the connection to the voice channel
-    const connection = joinVoiceChannel({
-      channelId: voiceChannelId,
-      guildId: guildId,
-      adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-    });
+      // create the connection to the voice channel
+      createVcConnection(
+        voiceChannelId,
+        guildId,
+        voiceChannel,
+        interaction,
+        audioFileNameToPlay,
+        player
+      );
+    } else {
+      // e.g. of a content message '!swk play xxx' length will always be 3
+      var contentMessageArray = interaction.content.split(" ");
+      if (contentMessageArray.length === 3) {
+        var audioFileNameToPlay = contentMessageArray[2];
 
-    interaction.reply(`Started playing: ${audioFileNameSelected}`);
+        let objAnevrism = anevrismChoiceList.find(
+          (o) => o.name === audioFileNameToPlay
+        );
+        let objNervi = nerviChoiceList.find(
+          (o) => o.name === audioFileNameToPlay
+        );
+        let objAlcoolic = alcoolicChoiceList.find(
+          (o) => o.name === audioFileNameToPlay
+        );
 
-    // Subscribe the connection to the audio player (will play audio on the voice connection)
-    const subscription = connection.subscribe(player);
+        if (objAnevrism) {
+          createAndPlayAudioFile(audioFileNameToPlay, OPTION_ANEVRISM, player);
+        }
+        if (objNervi) {
+          createAndPlayAudioFile(audioFileNameToPlay, OPTION_NERVI, player);
+        }
+        if (objAlcoolic) {
+          createAndPlayAudioFile(audioFileNameToPlay, OPTION_ALCOOLIC, player);
+        }
 
-    // subscription could be undefined if the connection is destroyed!
-    if (subscription) {
-      // Unsubscribe after 10 seconds (stop playing audio on the voice connection)
-      setTimeout(() => {
-        subscription.unsubscribe();
-      }, 30000);
+        // create the connection to the voice channel
+        createVcConnection(
+          voiceChannelId,
+          guildId,
+          voiceChannel,
+          interaction,
+          audioFileNameToPlay,
+          player
+        );
+      } else {
+        interaction.reply('Incorrect command, please try again.');
+      }
     }
   },
 };
 
 /**
+ * Methoad that creates the Vc connection and joins the right channel to play the audio file.
+ *
+ * @param {*} voiceChannelId vc id to connect to
+ * @param {*} guildId guild id where the command was issued
+ * @param {*} voiceChannel voiceChannel
+ * @param {*} interaction
+ * @param {*} audioFileNameToPlay audio file to play
+ * @param {*} player audio player
+ */
+function createVcConnection(
+  voiceChannelId,
+  guildId,
+  voiceChannel,
+  interaction,
+  audioFileNameToPlay,
+  player
+) {
+  const connection = joinVoiceChannel({
+    channelId: voiceChannelId,
+    guildId: guildId,
+    adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+  });
+
+  interaction.reply(`Started playing: ${audioFileNameToPlay}`);
+
+  // Subscribe the connection to the audio player (will play audio on the voice connection)
+  const subscription = connection.subscribe(player);
+
+  // subscription could be undefined if the connection is destroyed!
+  if (subscription) {
+    // Unsubscribe after 10 seconds (stop playing audio on the voice connection)
+    setTimeout(() => {
+      subscription.unsubscribe();
+    }, 30000);
+  }
+}
+
+/**
  * Method populates choiceLists that are used in the {@link SlashCommandBuilder}.
- * 
+ *
  * @param {*} list to hold choices
  * @param {*} option where the audio files are located
  */
@@ -138,22 +195,15 @@ function populateListFromLocalAudioFiles(list, option) {
 /**
  * Creates and plays selected audio file.
  *
- * @param {*} resource for audio file selected
  * @param {*} audioFileNameSelected audio file to play
  * @param {*} player audio player to play in the VC
  * @returns audio resource created
  */
-function createAndPlayAudioFile(
-  resource,
-  audioFileNameSelected,
-  option,
-  player
-) {
-  resource = createAudioResource(
+function createAndPlayAudioFile(audioFileNameSelected, option, player) {
+  const resource = createAudioResource(
     `C:\\VSProjects\\SwkBot2.0\\resources\\audioFiles\\${option}\\${audioFileNameSelected}.mp3`
   );
   player.play(resource);
-  return resource;
 }
 
 /**
