@@ -89,10 +89,10 @@ module.exports = {
         voiceChannelId,
         guildId,
         voiceChannel,
-        interaction,
-        audioFileNameToPlay,
         player
       );
+
+      interaction.reply(`Started playing: ${audioFileNameSelected}`);
     } else {
       // e.g. of a content message '!swk play xxx' length will always be 3
       var contentMessageArray = interaction.content.split(" ");
@@ -124,8 +124,6 @@ module.exports = {
           voiceChannelId,
           guildId,
           voiceChannel,
-          interaction,
-          audioFileNameToPlay,
           player
         );
       } else {
@@ -141,16 +139,12 @@ module.exports = {
  * @param {*} voiceChannelId vc id to connect to
  * @param {*} guildId guild id where the command was issued
  * @param {*} voiceChannel voiceChannel
- * @param {*} interaction
- * @param {*} audioFileNameToPlay audio file to play
  * @param {*} player audio player
  */
 function createVcConnection(
   voiceChannelId,
   guildId,
   voiceChannel,
-  interaction,
-  audioFileNameToPlay,
   player
 ) {
   const connection = joinVoiceChannel({
@@ -158,9 +152,6 @@ function createVcConnection(
     guildId: guildId,
     adapterCreator: voiceChannel.guild.voiceAdapterCreator,
   });
-
-  interaction.reply(`Started playing: ${audioFileNameToPlay}`);
-
   // Subscribe the connection to the audio player (will play audio on the voice connection)
   const subscription = connection.subscribe(player);
 
