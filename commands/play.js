@@ -11,83 +11,33 @@ const {
 const config = require("../config.json");
 const fs = require("fs");
 
-// constant used to represent folder names
+// constants used to represent folder names
 const OPTION_NERVI = "nervi";
 const OPTION_ALCOOLIC = "alcoolic";
 const OPTION_ANEVRISM = "anevrism";
 
-const audioNerviFiles = fs
-  .readdirSync(`./resources/audioFiles/${OPTION_NERVI}`)
-  .filter((file) => file.endsWith(".mp3"));
+// init choice lists
 var nerviChoiceList = [];
-
-const audioAlcoolicFiles = fs
-  .readdirSync(`./resources/audioFiles/${OPTION_ALCOOLIC}`)
-  .filter((file) => file.endsWith(".mp3"));
 var alcoolicChoiceList = [];
-
-const audioAnevrismFiles = fs
-  .readdirSync(`./resources/audioFiles/${OPTION_ANEVRISM}`)
-  .filter((file) => file.endsWith(".mp3"));
 var anevrismChoiceList = [];
 
-// populate nervi choices
-for (const file of audioNerviFiles) {
-  var fileNameArray = file.split(".");
-  const fileName = fileNameArray[0];
-  const choiceObject = { name: fileName, value: fileName };
-  nerviChoiceList.push(choiceObject);
-}
-
-// populate alcoolic choices
-for (const file of audioAlcoolicFiles) {
-  var fileNameArray = file.split(".");
-  const fileName = fileNameArray[0];
-  const choiceObject = { name: fileName, value: fileName };
-  alcoolicChoiceList.push(choiceObject);
-}
-
-// populate anevrism choices
-for (const file of audioAnevrismFiles) {
-  var fileNameArray = file.split(".");
-  const fileName = fileNameArray[0];
-  const choiceObject = { name: fileName, value: fileName };
-  anevrismChoiceList.push(choiceObject);
-}
+// populate choice lists
+populateListFromLocalAudioFiles(nerviChoiceList, OPTION_NERVI);
+populateListFromLocalAudioFiles(alcoolicChoiceList, OPTION_ALCOOLIC);
+populateListFromLocalAudioFiles(anevrismChoiceList, OPTION_ANEVRISM);
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("play")
     .setDescription("Plays swk moments in the Voice Channel")
     .addStringOption((option) => {
-      for (let i = 0; i < nerviChoiceList.length; i++) {
-        if (!option.name) {
-          option.setName(OPTION_NERVI).setDescription(OPTION_NERVI);
-        } else {
-          option.addChoices(nerviChoiceList[i]);
-        }
-      }
-      return option;
+      return populateChoiceList(option, nerviChoiceList, OPTION_NERVI);
     })
     .addStringOption((option) => {
-      for (let i = 0; i < alcoolicChoiceList.length; i++) {
-        if (!option.name) {
-          option.setName(OPTION_ALCOOLIC).setDescription(OPTION_ALCOOLIC);
-        } else {
-          option.addChoices(alcoolicChoiceList[i]);
-        }
-      }
-      return option;
+      return populateChoiceList(option, alcoolicChoiceList, OPTION_ALCOOLIC);
     })
     .addStringOption((option) => {
-      for (let i = 0; i < anevrismChoiceList.length; i++) {
-        if (!option.name) {
-          option.setName(OPTION_ANEVRISM).setDescription(OPTION_ANEVRISM);
-        } else {
-          option.addChoices(anevrismChoiceList[i]);
-        }
-      }
-      return option;
+      return populateChoiceList(option, anevrismChoiceList, OPTION_ANEVRISM);
     }),
   async execute(interaction, client) {
     // get the option used to determine which audioFile to play
@@ -113,32 +63,36 @@ module.exports = {
       console.error(`Error: ${error.message} with resource`);
     });
 
-    switch (optionSelected) {
-      case OPTION_NERVI:
-        // create and play audio
-        if (audioFileNameSelected) {
-          const resource = createAudioResource(
-            `C:\\VSProjects\\SwkBot2.0\\resources\\audioFiles\\${OPTION_NERVI}\\${audioFileNameSelected}.mp3`
+    if (audioFileNameSelected) {
+      var resource = "";
+
+      switch (optionSelected) {
+        case OPTION_NERVI:
+          // create and play audio
+          resource = createAndPlayAudioFile(
+            resource,
+            audioFileNameSelected,
+            OPTION_NERVI,
+            player
           );
-          player.play(resource);
-        }
-        break;
-      case OPTION_ALCOOLIC:
-        if (audioFileNameSelected) {
-          const resource = createAudioResource(
-            `C:\\VSProjects\\SwkBot2.0\\resources\\audioFiles\\${OPTION_ALCOOLIC}\\${audioFileNameSelected}.mp3`
+          break;
+        case OPTION_ALCOOLIC:
+          resource = createAndPlayAudioFile(
+            resource,
+            audioFileNameSelected,
+            OPTION_ALCOOLIC,
+            player
           );
-          player.play(resource);
-        }
-        break;
-      case OPTION_ANEVRISM:
-        if (audioFileNameSelected) {
-          const resource = createAudioResource(
-            `C:\\VSProjects\\SwkBot2.0\\resources\\audioFiles\\${OPTION_ANEVRISM}\\${audioFileNameSelected}.mp3`
+          break;
+        case OPTION_ANEVRISM:
+          resource = createAndPlayAudioFile(
+            resource,
+            audioFileNameSelected,
+            OPTION_ANEVRISM,
+            player
           );
-          player.play(resource);
-        }
-        break;
+          break;
+      }
     }
 
     // create the connection to the voice channel
@@ -162,3 +116,62 @@ module.exports = {
     }
   },
 };
+
+/**
+ * Method populates choiceLists that are used in the {@link SlashCommandBuilder}.
+ * 
+ * @param {*} list to hold choices
+ * @param {*} option where the audio files are located
+ */
+function populateListFromLocalAudioFiles(list, option) {
+  const audioFiles = fs
+    .readdirSync(`./resources/audioFiles/${option}`)
+    .filter((file) => file.endsWith(".mp3"));
+
+  for (const file of audioFiles) {
+    var fileNameArray = file.split(".");
+    const fileName = fileNameArray[0];
+    const choiceObject = { name: fileName, value: fileName };
+    list.push(choiceObject);
+  }
+}
+
+/**
+ * Creates and plays selected audio file.
+ *
+ * @param {*} resource for audio file selected
+ * @param {*} audioFileNameSelected audio file to play
+ * @param {*} player audio player to play in the VC
+ * @returns audio resource created
+ */
+function createAndPlayAudioFile(
+  resource,
+  audioFileNameSelected,
+  option,
+  player
+) {
+  resource = createAudioResource(
+    `C:\\VSProjects\\SwkBot2.0\\resources\\audioFiles\\${option}\\${audioFileNameSelected}.mp3`
+  );
+  player.play(resource);
+  return resource;
+}
+
+/**
+ * Method populates choice list for an option.
+ *
+ * @param {*} option the name of the option that is being populated
+ * @param {*} list of choices
+ * @param {*} choiceOption choice added to option
+ * @returns option object
+ */
+function populateChoiceList(option, list, choiceOption) {
+  for (let i = 0; i < list.length; i++) {
+    if (!option.name) {
+      option.setName(choiceOption).setDescription(choiceOption);
+    } else {
+      option.addChoices(list[i]);
+    }
+  }
+  return option;
+}
