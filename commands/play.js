@@ -13,16 +13,19 @@ const fs = require("fs");
 const OPTION_NERVI = "nervi";
 const OPTION_ALCOOLIC = "alcoolic";
 const OPTION_ANEVRISM = "anevrism";
+const OPTION_NEW = "new";
 
 // init choice lists
 var nerviChoiceList = [];
 var alcoolicChoiceList = [];
 var anevrismChoiceList = [];
+var newChoiceList = [];
 
 // populate choice lists
 populateListFromLocalAudioFiles(nerviChoiceList, OPTION_NERVI);
 populateListFromLocalAudioFiles(alcoolicChoiceList, OPTION_ALCOOLIC);
 populateListFromLocalAudioFiles(anevrismChoiceList, OPTION_ANEVRISM);
+populateListFromLocalAudioFiles(newChoiceList, OPTION_NEW);
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -36,6 +39,9 @@ module.exports = {
     })
     .addStringOption((option) => {
       return populateChoiceList(option, anevrismChoiceList, OPTION_ANEVRISM);
+    })
+    .addStringOption((option) => {
+      return populateChoiceList(option, newChoiceList, OPTION_NEW);
     }),
   async execute(interaction, client) {
     // get voice channel id where the user that issues the command is connected
@@ -81,16 +87,14 @@ module.exports = {
               player
             );
             break;
+          case OPTION_NEW:
+            createAndPlayAudioFile(audioFileNameSelected, OPTION_NEW, player);
+            break;
         }
       }
 
       // create the connection to the voice channel
-      createVcConnection(
-        voiceChannelId,
-        guildId,
-        voiceChannel,
-        player
-      );
+      createVcConnection(voiceChannelId, guildId, voiceChannel, player);
 
       interaction.reply(`Started playing: ${audioFileNameSelected}`);
     } else {
@@ -108,6 +112,7 @@ module.exports = {
         let objAlcoolic = alcoolicChoiceList.find(
           (o) => o.name === audioFileNameToPlay
         );
+        let objNew = newChoiceList.find((o) => o.name === audioFileNameToPlay);
 
         if (objAnevrism) {
           createAndPlayAudioFile(audioFileNameToPlay, OPTION_ANEVRISM, player);
@@ -118,16 +123,14 @@ module.exports = {
         if (objAlcoolic) {
           createAndPlayAudioFile(audioFileNameToPlay, OPTION_ALCOOLIC, player);
         }
+        if (objNew) {
+          createAndPlayAudioFile(audioFileNameToPlay, OPTION_NEW, player);
+        }
 
         // create the connection to the voice channel
-        createVcConnection(
-          voiceChannelId,
-          guildId,
-          voiceChannel,
-          player
-        );
+        createVcConnection(voiceChannelId, guildId, voiceChannel, player);
       } else {
-        interaction.reply('Incorrect command, please try again.');
+        interaction.reply("Incorrect command, please try again.");
       }
     }
   },
@@ -141,12 +144,7 @@ module.exports = {
  * @param {*} voiceChannel voiceChannel
  * @param {*} player audio player
  */
-function createVcConnection(
-  voiceChannelId,
-  guildId,
-  voiceChannel,
-  player
-) {
+function createVcConnection(voiceChannelId, guildId, voiceChannel, player) {
   const connection = joinVoiceChannel({
     channelId: voiceChannelId,
     guildId: guildId,

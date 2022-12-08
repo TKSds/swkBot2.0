@@ -5,6 +5,7 @@ const fs = require("fs");
 const OPTION_NERVI = "nervi";
 const OPTION_ALCOOLIC = "alcoolic";
 const OPTION_ANEVRISM = "anevrism";
+const OPTION_NEW = "new";
 
 // list that holds all audio files
 var list = [];
@@ -17,6 +18,7 @@ module.exports = {
     populateListFromLocalAudioFiles(list, OPTION_NERVI);
     populateListFromLocalAudioFiles(list, OPTION_ALCOOLIC);
     populateListFromLocalAudioFiles(list, OPTION_ANEVRISM);
+    populateListFromLocalAudioFiles(list, OPTION_NEW);
     await interaction.channel.send(
       list.map((i) => `${list.indexOf(i) + 1}. ${i}`).join("\n")
     );
